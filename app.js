@@ -1,4 +1,6 @@
-// ===== CONFIGURACIÓN FIREBASE =====
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBNIcGa1ns81g9wbdTaO_pokngT6BNu330",
   authDomain: "marlook-bc5aa.firebaseapp.com",
@@ -8,37 +10,150 @@ const firebaseConfig = {
   appId: "1:442377080004:web:55b1de3ee9a79a5f140d91"
 };
 
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
+const productList = document.getElementById("product-list");
 
-console.log("Firebase inicializado");
+const cargarProductos = async () => {
+  const querySnapshot = await getDocs(collection(db, "productos"));
 
-// ===== FIN CONFIGURACIÓN FIREBASE =====
+  productList.innerHTML = "";
 
-let products = [];
+  querySnapshot.forEach((doc) => {
+    const producto = doc.data();
+
+    productList.innerHTML += `
+  <div class="product-card">
+    <img src="${producto.image}" alt="${producto.name}">
+    <h3>${producto.name}</h3>
+    <p>$${producto.price}</p>
+    <button class="btn btn-primary"
+  onclick="agregarAlCarrito({
+    id: '${doc.id}',
+    nombre: '${producto.name}',
+    precio: ${producto.price},
+    imagen: '${producto.image}'
+  })">
+  Agregar al carrito
+</button>
+  </div>
+`;
+  });
+};
+
+cargarProductos();
+
+// ===== CARRITO =====
+
+let carrito = [];
+
+window.agregarAlCarrito = (producto) => {
+  const existente = carrito.find(p => p.id === producto.id);
+
+  if (existente) {
+    existente.quantity += 1;
+  } else {
+    carrito.push({ ...producto, quantity: 1 });
+  }
+
+  actualizarCarrito();
+};
+const cartItems = document.getElementById("cart-items");
+const cartCount = document.getElementById("cart-count");
+const cartTotal = document.getElementById("cart-total");
+
+const actualizarCarrito = () => {
+  cartItems.innerHTML = "";
+  let total = 0;
+
+  if (carrito.length === 0) {
+    cartItems.innerHTML = "<p>Tu carrito está vacío.</p>";
+    cartCount.textContent = "0";
+    cartTotal.textContent = "0";
+    return;
+  }
+
+  carrito.forEach((prod) => {
+    total += prod.precio * prod.quantity;
+
+    cartItems.innerHTML += `
+      <div class="cart-item">
+        <img src="${prod.imagen}" alt="${prod.nombre}" width="50">
+        <div style="flex:1">
+          <p>${prod.nombre}</p>
+          <p>$${prod.precio} x ${prod.quantity}</p>
+        </div>
+        <div class="cart-actions">
+          <button class="btn btn-secondary" onclick="sumarProducto('${prod.id}')">+</button>
+          <button class="btn btn-secondary" onclick="restarProducto('${prod.id}')">-</button>
+          <button class="btn btn-secondary" onclick="eliminarProducto('${prod.id}')">✕</button>
+        </div>
+      </div>
+    `;
+  });
+
+  cartCount.textContent = carrito.reduce((acc, p) => acc + p.quantity, 0);
+  cartTotal.textContent = total;
+};
+window.sumarProducto = (id) => {
+  const prod = carrito.find(p => p.id === id);
+  if (prod) {
+    prod.quantity += 1;
+    actualizarCarrito();
+  }
+};
+
+window.restarProducto = (id) => {
+  const prod = carrito.find(p => p.id === id);
+  if (!prod) return;
+
+  prod.quantity -= 1;
+  if (prod.quantity <= 0) {
+    carrito = carrito.filter(p => p.id !== id);
+  }
+
+  actualizarCarrito();
+};
+
+window.eliminarProducto = (id) => {
+  carrito = carrito.filter(p => p.id !== id);
+  actualizarCarrito();
+};
+// ===== MODAL CARRITO =====
+
+const btnCart = document.getElementById("btn-cart");
+const cartModal = document.getElementById("cart-modal");
+
+// Abrir carrito
+btnCart.addEventListener("click", () => {
+  cartModal.classList.remove("hidden");
+});
+
+// Cerrar carrito (X)
+document.querySelectorAll("[data-close]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.getElementById(btn.dataset.close).classList.add("hidden");
+  });
+});
+
+/*
+// Productos locales (edita o añade más objetos según necesites)
+let products = [
+  { id: 'p1', name: 'Calzas cortas', price: 15000, image: 'img/img1.jpeg' },
+  { id: 'p2', name: 'Remerones', price: 12000, image: 'img/img2.jpeg' },
+  { id: 'p3', name: 'Vestido batik', price: 25000, image: 'img/img3.jpeg' },
+  { id: 'p4', name: 'Remeras deportivas', price: 15000, image: 'img/img4.jpeg' },
+  { id: 'p5', name: 'Calzas levanta gluteos', price: 13000, image: 'img/img5.jpeg' },
+  { id: 'p6', name: 'Calzas cortas', price: 15000, image: 'img/img6.jpeg' },
+  { id: 'p3', name: 'Calzas cortas', price: 15000, image: 'img/img7.jpeg' },
+  { id: 'p3', name: 'Calzas cortas', price: 15000, image: 'img/img8.jpeg' },
+  { id: 'p3', name: 'Calzas cortas', price: 15000, image: 'img/img9.jpeg' },
+];
 let cart = JSON.parse(localStorage.getItem("cart") || "[]");
 let currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
 
 const productListEl = document.getElementById("product-list");
-
-async function loadProductsFromFirebase() {
-  try {
-    console.log("Cargando productos...");
-    const snapshot = await db.collection("productos").get();
-    
-    products = [];
-    snapshot.forEach(doc => {
-      products.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    console.log("Productos cargados:", products);
-    renderProducts();
-  } catch (error) {
-    console.error("Error:", error);
-  }
-}
 
 function renderProducts() {
   productListEl.innerHTML = "";
@@ -59,7 +174,14 @@ function renderProducts() {
   });
 }
 
-loadProductsFromFirebase();
+// Productos locales ya definidos arriba; no se usa Firebase.
+// Renderizar productos al inicio
+renderProducts();
+*/
+/*
+
+
+
 
 // ===== CARRITO =====
 const cartCountEl = document.getElementById("cart-count");
@@ -305,3 +427,4 @@ btnCheckout.addEventListener("click", () => {
 updateCartCount();
 renderCart();
 updateAuthUI();
+*/
