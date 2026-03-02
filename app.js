@@ -120,6 +120,29 @@ window.eliminarProducto = (id) => {
   carrito = carrito.filter(p => p.id !== id);
   actualizarCarrito();
 };
+// ===== FINALIZAR COMPRA =====
+
+const btnCheckout = document.getElementById("btn-checkout");
+
+btnCheckout.addEventListener("click", () => {
+
+  if (carrito.length === 0) {
+    alert("Tu carrito está vacío.");
+    return;
+  }
+
+  // Vaciar carrito
+  carrito = [];
+
+  // Actualizar interfaz
+  actualizarCarrito();
+
+  // Cerrar modal
+  cartModal.classList.add("hidden");
+
+  // Mostrar mensaje
+  alert("¡Gracias por tu compra!");
+});
 // ===== MODAL CARRITO =====
 
 const btnCart = document.getElementById("btn-cart");
